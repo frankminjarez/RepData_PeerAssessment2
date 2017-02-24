@@ -1,9 +1,4 @@
----
-title: "Health and Economic Impact of Weather Events in the USA"
-output: 
-  html_document:
-    keep_md: true
----
+# Health and Economic Impact of Weather Events in the USA
 
 Reproducible Data Assignment 2
 ==============================
@@ -38,7 +33,8 @@ and crops for each weather event type.
 
 Download the dataset and load it into a dataframe.
 
-```{r}
+
+```r
 library(plyr)
 library(ggplot2)
 url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
@@ -48,7 +44,6 @@ if (!file.exists(destfile)) {
 }
 
 data <- read.csv(destfile)
-
 ```
 
 ## Preprocess the data
@@ -64,7 +59,8 @@ The "evtype" column has numerous issues:
 
 The following code corrects these issues.
 
-```{r}
+
+```r
 tidyData <- data
 ## convert column names to lowercase
 colnames(tidyData) <- tolower(colnames(tidyData))
@@ -107,7 +103,8 @@ tidyData$evtype <- ifelse (grepl("snow", tidyData$evtype),
 We have data which gives us counts for injuries and fatalities for each event type. We'll group by evtype across all observations and sum injuries and fatalities.
 
 Next we'll create a new value which is the sum of injuries + fatalities for each evtype.
-```{r}
+
+```r
 ## Subset of columns for mapping events to health
 healthColumns <- c("evtype","fatalities", "injuries")
 healthData <- tidyData[healthColumns]
@@ -116,18 +113,22 @@ healthSummary <- ddply(healthData, .(evtype), numcolwise(sum))
 healthSummary$injury_death <- healthSummary$fatalities + healthSummary$injuries
 healthSummary <- subset(healthSummary, healthSummary$injury_death > 0)
 healthSummary <- healthSummary[order(healthSummary$injury_death,decreasing = T),]
-
-
 ```
 ### 97% of all injuries and deaths are caused by 20 event types. Let's focus on those top 20 events.
-```{r}
+
+```r
 ## Get the top 20
 top20 <- healthSummary[1:20,]
 sum(top20$injury_death) / sum(healthSummary$injury_death) * 100
 ```
+
+```
+## [1] 96.69114
+```
 ### Most fatalities and injuries are from Tornadoes
 
-```{r}
+
+```r
 top20$events <- factor(top20$evtype, levels=top20$evtype, ordered=TRUE)
 g <- ggplot(top20, aes(x=as.factor(events),y=injury_death)) +
         labs(x = "Event Type") + 
@@ -138,13 +139,16 @@ g <- ggplot(top20, aes(x=as.factor(events),y=injury_death)) +
 print(g)
 ```
 
+![](PA2_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+
 ## Across the United States, which types of events have the greatest economic consequences?
 
 Convert property and crop damage to dollar values. Create a new column total damage
 which is the sum of property and crop damage. Sum total damage by evtype.
 
 Focus on the most damaging weather events.
-```{r}
+
+```r
 ## Convert property and crop damage to dollar values
 propdmgexp <- c("", "H", "K", "M", "B")
 propmultiple <- c(1, 100, 1000, 1000000, 1000000000)
@@ -169,13 +173,19 @@ propertySummary <- ddply(propertyData, .(evtype), numcolwise(sum))
 propertySummary <- propertySummary[order(propertySummary$totaldmg,decreasing = T),]
 ```
 ### 98% of all damage is done by the top 20 events, let's focus on those
-```{r}
+
+```r
 ## Take the top 20 dollar amount damage evtype values
 top20 <- propertySummary[1:20,]
 sum(top20$totaldmg) / sum(propertySummary$totaldmg) * 100
 ```
+
+```
+## [1] 98.35146
+```
 ### Flood is the leading cause of property and crop damage
-```{r}
+
+```r
 top20$events <- factor(top20$evtype, levels=top20$evtype, ordered=TRUE)
 g <- ggplot(top20, aes(x=as.factor(events),y=totaldmg/10^9)) +
         labs(x = "Event Type") + 
@@ -185,3 +195,5 @@ g <- ggplot(top20, aes(x=as.factor(events),y=totaldmg/10^9)) +
         theme(axis.text.x = element_text(angle = 90, hjust = 1))
 print(g)
 ```
+
+![](PA2_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
