@@ -128,18 +128,20 @@ print(g)
 
 ```{r}
 propdmgexp <- c("", "K", "M", "B")
-propmultiple <- c(1, 1000, 1000000, 1000000000)
+propmultiple <- c("1", "1000", "1000000", "1000000000")
 
 multiples <- cbind(propdmgexp, propmultiple)
 propertyData <- merge(data, multiples, by="propdmgexp")
-propertyData$propdmg_m <- as.numeric(propertyData$propdmg) * as.numeric(propertyData$propmultiple)
+propertyData$propdmg_m <- propertyData$propdmg * 
+        as.numeric(as.character(propertyData$propmultiple))
 
 cropdmgexp <- c("", "K", "M", "B")
-cropmultiple <- c(1, 1000, 1000000, 1000000000)
+cropmultiple <- c("1", "1000", "1000000", "1000000000")
 
 multiples <- cbind(cropdmgexp, cropmultiple)
 propertyData <- merge(propertyData, multiples, by="cropdmgexp")
-propertyData$cropdmg_m <- as.numeric(propertyData$cropdmg) * as.numeric(propertyData$cropmultiple)
+propertyData$cropdmg_m <- propertyData$cropdmg * 
+        as.numeric(as.character(propertyData$cropmultiple))
 propertyData$totaldmg <- propertyData$propdmg_m + propertyData$cropdmg_m
 
 propertySummary <- ddply(propertyData, .(evtype), numcolwise(sum))
