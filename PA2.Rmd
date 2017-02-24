@@ -1,0 +1,119 @@
+Reproducible Data Assignment 2
+==============================
+
+The goal of this assignment is to explore the NOAA Storm Database and answer two questions about severe weather events:
+
+1. Across the United States, which types of events (as indicated in the *evtype* variable) are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
+# Data Processing
+
+
+## Load the data
+
+Download the dataset and load it into a dataframe.
+
+```{r}
+library(plyr)
+library(ggplot2)
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+destfile <- "stormdata.csv.bz2"
+if (!file.exists(destfile)) {
+        download.file(url = url, destfile = destfile, method = "curl")
+}
+
+data <- read.csv(destfile)
+
+```
+
+## Preprocess the data
+
+Tidy the column names by making them lowercase. 
+
+The "evtype" column has numerous issues:
+1. Misspellings
+2. Mix of lowercase and uppercase values
+3. Mix of plural and singular names
+4. Mix of specific events such as "hurricane <name>" mixed with event types
+
+The following code corrects the issues with "evtype" values.
+
+```{r}
+colnames(data) <- tolower(colnames(data))
+
+## Subset of columns for mapping events to health
+healthColumns <- c("evtype","fatalities", "injuries")
+healthData <- data[healthColumns]
+
+## evtype names are both UPPER and lowercase make them all lowercase for grouping
+healthData$evtype <- trimws(tolower(healthData$evtype), c("both"))
+
+## Some events are plural, convert plural to singular events
+healthData$evtype <- ifelse (grepl(".*s$", healthData$evtype),
+                             substr(healthData$evtype, 1, nchar(healthData$evtype) - 1), 
+                             healthData$evtype)
+
+## Convert all versions of flood to flood
+healthData$evtype <- ifelse (grepl("flood", healthData$evtype), 
+                             "flood",
+                             healthData$evtype)
+
+## Convert all versions of hurriance to huricane
+healthData$evtype <- ifelse (grepl("hurricane", healthData$evtype), 
+                             "hurricane", 
+                             healthData$evtype)
+
+## Convert all versions of thunderstorm to thunderstorm
+healthData$evtype <- ifelse (grepl("thunder", healthData$evtype), 
+                             "thunderstorm", 
+                             healthData$evtype)
+
+## Convert all versions of ic* to ice
+healthData$evtype <- ifelse (grepl("^ic", healthData$evtype), 
+                             "ice", 
+                             healthData$evtype)
+
+## Convert all versions of wint* to winter weather
+healthData$evtype <- ifelse (grepl("^wint", healthData$evtype), 
+                             "winter weather", 
+                             healthData$evtype)
+
+## Convert all versions of wint* to winter weather
+healthData$evtype <- ifelse (grepl("snow", healthData$evtype), 
+                             "snow", 
+                             healthData$evtype)
+```
+# Results
+
+Which types of events (as indicated in the *evtype* variable) are most harmful with respect to population health?
+
+We have data which gives us counts for injuries and fatalities for each event type. We'll group by evtype across all observations and sum injuries and fatalities.
+
+Next we'll create a new value which is the sum of injuries + fatalities for each evtype.
+```{r}
+healthSummary <- ddply(healthData, .(evtype), numcolwise(sum))
+healthSummary$injury_death <- healthSummary$fatalities + healthSummary$injuries
+healthSummary <- subset(healthSummary, healthSummary$injury_death > 0)
+healthSummary <- healthSummary[order(healthSummary$injury_death,decreasing = T),]
+
+
+```
+### 97% of all injuries are caused by 20 event types. Let's focus on those top 20 events.
+```{r}
+## Get the top 20
+top20 <- healthSummary[1:20,]
+sum(top20$injury_death) / sum(healthSummary$injury_death) * 100
+```
+### Most fatalities and injuries are from Tornados
+
+```{r}
+top20$events <- factor(top20$evtype, levels=top20$evtype, ordered=TRUE)
+g <- ggplot(top20, aes(x=as.factor(events),y=injury_death)) +
+        labs(x = "Event Type") + 
+        labs(y = "Fatalities and Injuries") +
+        labs(title = "Fatalities and Injuries by Weather Event") +
+        geom_bar(stat = "Identity") + 
+        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(g)
+```
+
