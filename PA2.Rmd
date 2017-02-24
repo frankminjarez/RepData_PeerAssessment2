@@ -46,49 +46,46 @@ The "evtype" column has numerous issues:
 The following code corrects the issues with "evtype" values.
 
 ```{r}
-colnames(data) <- tolower(colnames(data))
-
-## Subset of columns for mapping events to health
-healthColumns <- c("evtype","fatalities", "injuries")
-healthData <- data[healthColumns]
+tidyData <- data
+colnames(tidyData) <- tolower(colnames(tidyData))
 
 ## evtype names are both UPPER and lowercase make them all lowercase for grouping
-healthData$evtype <- trimws(tolower(healthData$evtype), c("both"))
+tidyData$evtype <- trimws(tolower(tidyData$evtype), c("both"))
 
 ## Some events are plural, convert plural to singular events
-healthData$evtype <- ifelse (grepl(".*s$", healthData$evtype),
-                             substr(healthData$evtype, 1, nchar(healthData$evtype) - 1), 
-                             healthData$evtype)
+tidyData$evtype <- ifelse (grepl(".*s$", tidyData$evtype),
+                             substr(tidyData$evtype, 1, nchar(tidyData$evtype) - 1), 
+                             tidyData$evtype)
 
 ## Convert all versions of flood to flood
-healthData$evtype <- ifelse (grepl("flood", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("flood", tidyData$evtype), 
                              "flood",
-                             healthData$evtype)
+                             tidyData$evtype)
 
 ## Convert all versions of hurriance to huricane
-healthData$evtype <- ifelse (grepl("hurricane", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("hurricane", tidyData$evtype), 
                              "hurricane", 
-                             healthData$evtype)
+                             tidyData$evtype)
 
 ## Convert all versions of thunderstorm to thunderstorm
-healthData$evtype <- ifelse (grepl("thunder", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("thunder", tidyData$evtype), 
                              "thunderstorm", 
-                             healthData$evtype)
+                             tidyData$evtype)
 
 ## Convert all versions of ic* to ice
-healthData$evtype <- ifelse (grepl("^ic", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("^ic", tidyData$evtype), 
                              "ice", 
-                             healthData$evtype)
+                             tidyData$evtype)
 
 ## Convert all versions of wint* to winter weather
-healthData$evtype <- ifelse (grepl("^wint", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("^wint", tidyData$evtype), 
                              "winter weather", 
-                             healthData$evtype)
+                             tidyData$evtype)
 
 ## Convert all versions of wint* to winter weather
-healthData$evtype <- ifelse (grepl("snow", healthData$evtype), 
+tidyData$evtype <- ifelse (grepl("snow", tidyData$evtype), 
                              "snow", 
-                             healthData$evtype)
+                             tidyData$evtype)
 ```
 # Results
 
@@ -98,6 +95,10 @@ We have data which gives us counts for injuries and fatalities for each event ty
 
 Next we'll create a new value which is the sum of injuries + fatalities for each evtype.
 ```{r}
+## Subset of columns for mapping events to health
+healthColumns <- c("evtype","fatalities", "injuries")
+healthData <- tidyData[healthColumns]
+
 healthSummary <- ddply(healthData, .(evtype), numcolwise(sum))
 healthSummary$injury_death <- healthSummary$fatalities + healthSummary$injuries
 healthSummary <- subset(healthSummary, healthSummary$injury_death > 0)
@@ -131,7 +132,7 @@ propdmgexp <- c("", "K", "M", "B")
 propmultiple <- c("1", "1000", "1000000", "1000000000")
 
 multiples <- cbind(propdmgexp, propmultiple)
-propertyData <- merge(data, multiples, by="propdmgexp")
+propertyData <- merge(tidyData, multiples, by="propdmgexp")
 propertyData$propdmg_m <- propertyData$propdmg * 
         as.numeric(as.character(propertyData$propmultiple))
 
@@ -146,7 +147,9 @@ propertyData$totaldmg <- propertyData$propdmg_m + propertyData$cropdmg_m
 
 propertySummary <- ddply(propertyData, .(evtype), numcolwise(sum))
 propertySummary <- propertySummary[order(propertySummary$totaldmg,decreasing = T),]
-
+```
+## 98% of all damage is done by the top 20 events, let's focus on those
+```{r}
 top20 <- propertySummary[1:20,]
 sum(top20$totaldmg) / sum(propertySummary$totaldmg) * 100
 top20$events <- factor(top20$evtype, levels=top20$evtype, ordered=TRUE)
