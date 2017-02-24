@@ -1,4 +1,11 @@
-Reproducible Data Assignment 2
+---
+title: "Reproducible Research: Peer Assessment 2, Impact of Weather on Health and Economy"
+output: 
+  html_document:
+    keep_md: true
+---
+
+Reproducible Data Assignment 2, Impact of Weather on Health and Economy
 ==============================
 
 The goal of this assignment is to explore the NOAA Storm Database and answer two questions about severe weather events:
@@ -31,10 +38,10 @@ data <- read.csv(destfile)
 Tidy the column names by making them lowercase. 
 
 The "evtype" column has numerous issues:
-1. Misspellings
-2. Mix of lowercase and uppercase values
-3. Mix of plural and singular names
-4. Mix of specific events such as "hurricane <name>" mixed with event types
+1 Misspellings
+2 Mix of lowercase and uppercase values
+3 Mix of plural and singular names
+4 Mix of specific events such as "hurricane <name>" mixed with event types
 
 The following code corrects the issues with "evtype" values.
 
@@ -85,7 +92,7 @@ healthData$evtype <- ifelse (grepl("snow", healthData$evtype),
 ```
 # Results
 
-Which types of events (as indicated in the *evtype* variable) are most harmful with respect to population health?
+##Which types of events (as indicated in the *evtype* variable) are most harmful with respect to population health?
 
 We have data which gives us counts for injuries and fatalities for each event type. We'll group by evtype across all observations and sum injuries and fatalities.
 
@@ -117,3 +124,35 @@ g <- ggplot(top20, aes(x=as.factor(events),y=injury_death)) +
 print(g)
 ```
 
+# Calculate property damage
+
+```{r}
+propdmgexp <- c("", "K", "M", "B")
+propmultiple <- c(1, 1000, 1000000, 1000000000)
+
+multiples <- cbind(propdmgexp, propmultiple)
+propertyData <- merge(data, multiples, by="propdmgexp")
+propertyData$propdmg_m <- as.numeric(propertyData$propdmg) * as.numeric(propertyData$propmultiple)
+
+cropdmgexp <- c("", "K", "M", "B")
+cropmultiple <- c(1, 1000, 1000000, 1000000000)
+
+multiples <- cbind(cropdmgexp, cropmultiple)
+propertyData <- merge(propertyData, multiples, by="cropdmgexp")
+propertyData$cropdmg_m <- as.numeric(propertyData$cropdmg) * as.numeric(propertyData$cropmultiple)
+propertyData$totaldmg <- propertyData$propdmg_m + propertyData$cropdmg_m
+
+propertySummary <- ddply(propertyData, .(evtype), numcolwise(sum))
+propertySummary <- propertySummary[order(propertySummary$totaldmg,decreasing = T),]
+
+top20 <- propertySummary[1:20,]
+sum(top20$totaldmg) / sum(propertySummary$totaldmg) * 100
+top20$events <- factor(top20$evtype, levels=top20$evtype, ordered=TRUE)
+g <- ggplot(top20, aes(x=as.factor(events),y=totaldmg/10^6)) +
+        labs(x = "Event Type") + 
+        labs(y = "Cost of damages (1M)") +
+        labs(title = "Damage by Weather Event") +
+        geom_bar(stat = "Identity") + 
+        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(g)
+```
